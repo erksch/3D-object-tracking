@@ -10,8 +10,20 @@ class Tracker:
     def __init__(self):
         self.trackers = []
         self.id_count = 0
+        self.frame_count = 0
+        self.max_age = 3
+        self.use_dropout = False
+        self.dropout = 0.1
 
     def update(self, detections):
+        self.frame_count += 1
+        
+        if self.use_dropout:
+            n_detections = detections.shape[0]
+            dropout = int(n_detections * self.dropout)
+            print(f"Randomly dropping out {dropout} detections.")
+            detections = detections[np.random.choice(n_detections, n_detections - dropout, replace=False)]
+
         matched, unmatched_detections, unmatched_trackers = assign_detections_to_trackers(detections, self.trackers)
 
         print(f"Matched {len(matched)} of {len(self.trackers)} trackers and {len(detections)} detections.")
@@ -31,9 +43,18 @@ class Tracker:
             self.trackers.append(tracker)
         print()
 
-        print(f"Removing {len(unmatched_trackers)} unmatched trackers.")
-        for i in unmatched_trackers:
-            self.trackers.pop(i)
+
+
+        print(f"{len(unmatched_trackers)} unmatched trackers.")
+        removed_idx = []
+        i = len(self.trackers)
+        for tracker in reversed(self.trackers):
+            i -= 1
+            if tracker.blind_time >= self.max_age:
+                self.trackers.pop(i)
+                removed_idx.append(str(self.trackers[i].id))
+
+        print(f"Removed {len(removed_idx)} dead trackers: {','.join(removed_idx)}")
 
         hypothesis = {}
 
@@ -52,16 +73,23 @@ def assign_detections_to_trackers(detections, trackers, iou_threshold=0.1):
     if len(trackers) == 0:
         return np.empty((0, 2), dtype=int), np.arange(len(detections)), np.empty((0, 8, 3), dtype=int) 
 
-    predictions = np.zeros((len(trackers), 7))
+    predictions = np.zeros((len(trackers), 8))
 
     for t, tracker in enumerate(trackers):
         tracker.predict()
-        predictions[t] = tracker.get_state()
+        predictions[t][:7] = tracker.get_state()
+        predictions[t][7] = tracker.type
 
     cost_matrix = iou3d(
         torch.Tensor(detections)[:,:7],
         torch.Tensor(predictions)[:,:7]
     ).numpy()
+
+    # set overlap of boxes with different types to 0
+    for d in range(cost_matrix.shape[0]):
+        for p in range(cost_matrix.shape[1]):
+            if detections[d,7] != predictions[p,7]:
+                cost_matrix[d,p] = 0
 
     row_ind, col_ind = linear_sum_assignment(cost_matrix, maximize=True)
     matched_indices = np.stack((row_ind, col_ind), axis=1)

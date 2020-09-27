@@ -6,6 +6,8 @@ class KalmanTracker():
     def __init__(self, box, id, type):
         self.id = id
         self.type = type
+        self.age = 0
+        self.blind_time = 0
         
         self.kf = KalmanFilter(dim_x=11, dim_z=7)  
 
@@ -37,9 +39,12 @@ class KalmanTracker():
         self.kf.x[:7] = box.reshape((7, 1))
     
     def update(self, box):
+        self.blind_time = 0
         self.kf.update(box)
         
     def predict(self):
+        self.blind_time += 1
+        self.age += 1
         self.kf.predict()
         
     def get_state(self):

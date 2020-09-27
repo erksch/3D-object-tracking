@@ -4,6 +4,11 @@ from iou3d import iou3d
 from scipy.optimize import linear_sum_assignment
 
 def evaluation(real_objects, hypothesis, n_frames):
+    print("Running evaluation.")
+
+    print(f"Number of real objects: {len(real_objects)}")
+    print(f"Number of predicted objects: {len(hypothesis)}")
+
     mapping = {}
     distances = []
     c = []
@@ -18,7 +23,7 @@ def evaluation(real_objects, hypothesis, n_frames):
     n_h = count_in_frames(hypothesis)
 
     for frame in range(n_frames):
-        print(f"Evaluating frame {frame} / {n_frames}")
+        # print(f"Evaluating frame {frame} / {n_frames}")
 
         frame_mme = 0
         #distances.append([])
@@ -42,20 +47,7 @@ def evaluation(real_objects, hypothesis, n_frames):
         h_candidates = torch.Tensor(h_candidates)
 
         overlap = iou3d(o_candidates, h_candidates)
-
-        for o_i, o_idx in enumerate(o_indices):
-            ious, indices = overlap[o_i].sort(descending=True)
-
-            for i in range(len(overlap[o_i])):
-                if ious[i].item() == 0: break # No overlap
-
-                h_idx = h_indices[indices[i]]
-
-                if h_idx in frame_mapping.values(): # h already used
-                    continue
-
-                frame_mapping[o_idx] = h_idx
-                break
+        frame_mapping = mapping_from_overlap(overlap, o_indices, h_indices)
 
         """
         row_ind, col_ind = linear_sum_assignment(overlap, maximize=True)
@@ -108,5 +100,30 @@ def evaluation(real_objects, hypothesis, n_frames):
     fp_sum = np.array(fp).sum()
     mme_sum = np.array(mme).sum()
 
+    for frame in range(n_frames):
+        frame_str = f"[Frame {frame}]"
+        print(f"{frame_str:12} g {g[frame]} | misses {misses[frame]} | fp {fp[frame]} | mme {mme[frame]}")
+    print(f"{'Total':12} g {g_sum} | misses {misses_sum} | fp {fp_sum} | mme {mme_sum}")
+
     MOTA = 1 - (misses_sum + fp_sum + mme_sum) / g_sum
     print(f"MOTA: {MOTA}")
+
+def mapping_from_overlap(overlap, o_indices, h_indices):
+    threshold = 0
+    mapping = {}
+
+    for o_i, o_idx in enumerate(o_indices):
+        ious, indices = overlap[o_i].sort(descending=True)
+
+        for i in range(len(overlap[o_i])):
+            if ious[i].item() <= threshold: break # No enough overlap
+
+            h_idx = h_indices[indices[i]]
+
+            if h_idx in mapping.values(): # h already used
+                continue
+
+            mapping[o_idx] = h_idx
+            break
+
+    return mapping
