@@ -9,36 +9,38 @@ from KalmanTracker import KalmanTracker
 class Tracker:
     def __init__(self):
         self.trackers = []
+        self.id_count = 0
 
     def update(self, detections):
-        matched, unmachted_detections, unmatched_trackers = assign_detections_to_trackers(detections, self.trackers)
+        matched, unmatched_detections, unmatched_trackers = assign_detections_to_trackers(detections, self.trackers)
 
         print(f"Matched {len(matched)} of {len(self.trackers)} trackers and {len(detections)} detections.")
 
-        correct = 0
-
-        for d, t in matched:
-            if detections[d, 8] == self.trackers[t].id:
-                correct += 1
-
-        print(f"{correct} / {len(detections)} ({correct / len(detections) * 100:.2f}%) matched correctly.")
-
         for t, tracker in enumerate(self.trackers):
             if t not in unmatched_trackers:
-                d = matched[np.where(matched[:, 1] == t)[0], 0][0]
+                d = matched[np.where(matched[:,1] == t)[0], 0][0]
                 tracker.update(detections[d,:7])
 
-        print(f"Creating {len(unmachted_detections)} trackers for unmatched detections.")
+        print(f"Creating {len(unmatched_detections)} trackers for unmatched detections.")
         print("Unmatched: ", end='')
-        for i in unmachted_detections: 
-            print(f"{i} ({label_to_str[detections[i][7]]})", end=', ')
-            tracker = KalmanTracker(detections[i,:7], detections[i,8])
+        for i in unmatched_detections:
+            type = detections[i][7]
+            print(f"{i} ({label_to_str[type]})", end=', ')
+            tracker = KalmanTracker(detections[i,:7], self.id_count, type)
+            self.id_count += 1
             self.trackers.append(tracker)
         print()
 
         print(f"Removing {len(unmatched_trackers)} unmatched trackers.")
         for i in unmatched_trackers:
             self.trackers.pop(i)
+
+        hypothesis = {}
+
+        for tracker in self.trackers:
+            hypothesis[tracker.id] = np.append(tracker.get_state(), tracker.type)
+
+        return hypothesis
 
 def assign_detections_to_trackers(detections, trackers, iou_threshold=0.1):
     """

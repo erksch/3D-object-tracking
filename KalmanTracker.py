@@ -3,8 +3,9 @@ from filterpy.kalman import KalmanFilter
 
 # (x, y, z, w, l, h, angle, v_x, v_y, v_z, v_angle)
 class KalmanTracker():
-    def __init__(self, box, id):
+    def __init__(self, box, id, type):
         self.id = id
+        self.type = type
         
         self.kf = KalmanFilter(dim_x=11, dim_z=7)  
 

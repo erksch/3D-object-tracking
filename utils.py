@@ -7,7 +7,7 @@ label_to_str = {
     4: 'cyclist'
 }
 
-def label_to_box(l, tracking_id_to_idx):
+def label_to_box(l):
     return [
         l.box.center_x, 
         l.box.center_y, 
@@ -17,7 +17,6 @@ def label_to_box(l, tracking_id_to_idx):
         l.box.height, 
         l.box.heading,
         l.type,
-        tracking_id_to_idx[l.id]
     ]
 
 def print_table_head():
