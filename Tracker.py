@@ -12,18 +12,10 @@ class Tracker:
         self.id_count = 0
         self.frame_count = 0
         self.max_age = 3
-        self.use_dropout = False
-        self.dropout = 0.1
 
     def update(self, detections):
         self.frame_count += 1
         
-        if self.use_dropout:
-            n_detections = detections.shape[0]
-            dropout = int(n_detections * self.dropout)
-            print(f"Randomly dropping out {dropout} detections.")
-            detections = detections[np.random.choice(n_detections, n_detections - dropout, replace=False)]
-
         matched, unmatched_detections, unmatched_trackers = assign_detections_to_trackers(detections, self.trackers)
 
         print(f"Matched {len(matched)} of {len(self.trackers)} trackers and {len(detections)} detections.")
@@ -42,8 +34,6 @@ class Tracker:
             self.id_count += 1
             self.trackers.append(tracker)
         print()
-
-
 
         print(f"{len(unmatched_trackers)} unmatched trackers.")
         removed_idx = []

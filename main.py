@@ -38,9 +38,12 @@ def main():
     print(f"Loaded {len(frames)} frames.", end="\n\n")
 
     label_id_to_idx = {}
-    tracker = NaiveTracker()
     real_objects = {}
     hypothesis = {}
+
+    tracker = Tracker()
+    use_dropout = True
+    dropout = 0.2
 
     for i, frame in enumerate(frames):
         print(f"Frame {i} / {len(frames)}")
@@ -61,6 +64,12 @@ def main():
         detections = np.array([label_to_box(label) for label in labels])
 
         print(f"{len(detections)} detections.")
+
+        if use_dropout:
+            n_detections = detections.shape[0]
+            n_dropout = int(n_detections * dropout)
+            print(f"Randomly dropping out {n_dropout} detections.")
+            detections = detections[np.random.choice(n_detections, n_detections - n_dropout, replace=False)]
 
         frame_hypothesis = tracker.update(detections)
         for h_idx in frame_hypothesis.keys():

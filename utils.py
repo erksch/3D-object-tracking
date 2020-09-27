@@ -1,3 +1,4 @@
+labels = [1, 2, 3, 4]
 
 label_to_str = {
     #0: 'unknown',
