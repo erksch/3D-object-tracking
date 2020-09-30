@@ -8,7 +8,7 @@ label_to_str = {
     4: 'cyclist'
 }
 
-def label_to_box(l):
+def label_to_box(l, id):
     return [
         l.box.center_x, 
         l.box.center_y, 
@@ -18,6 +18,7 @@ def label_to_box(l):
         l.box.height, 
         l.box.heading,
         l.type,
+        id,
     ]
 
 def print_table_head():

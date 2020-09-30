@@ -11,7 +11,7 @@ class Tracker:
         self.trackers = []
         self.id_count = 0
         self.frame_count = 0
-        self.max_age = 3
+        self.max_age = 1
 
     def update(self, detections):
         self.frame_count += 1
@@ -49,7 +49,8 @@ class Tracker:
         hypothesis = {}
 
         for tracker in self.trackers:
-            hypothesis[tracker.id] = np.append(tracker.get_state(), tracker.type)
+            if tracker.blind_time == 0:
+                hypothesis[tracker.id] = np.append(tracker.get_state(), tracker.type)
 
         return hypothesis
 
