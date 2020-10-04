@@ -4,7 +4,6 @@ import numpy as np
 from iou3d import iou3d
 from scipy.optimize import linear_sum_assignment
 from utils import label_to_str, label_to_box
-from KalmanTracker import KalmanTracker
 
 class NaiveTracker:
     def __init__(self):

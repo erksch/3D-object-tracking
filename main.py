@@ -5,92 +5,25 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import numpy as np
 import tensorflow as tf
 import torch
+import argparse
 from waymo_open_dataset.utils import frame_utils, box_utils, transform_utils
 from waymo_open_dataset import dataset_pb2 as open_dataset
-from utils import label_to_box, label_to_str
+from utils import label_to_box, label_to_str, print_chart, print_mappings
 from evaluation import evaluation
-from Tracker import Tracker
+from PredictiveTracker import PredictiveTracker
 from NaiveTracker import NaiveTracker
 
 np.random.seed(0)
 
-print(f"TensorFlow version: {tf.__version__}")
-print(f"Torch version: {torch.__version__}", end="\n\n")
+def main(arguments):
+    print("============================")
+    print(f"TensorFlow version: {tf.__version__}")
+    print(f"Torch version: {torch.__version__}")
+    print("============================", end="\n\n")
 
-s_pedestrians = 'segment-12956664801249730713_2840_000_2860_000_with_camera_labels.tfrecord'
-s_vehicles = 'segment-15578655130939579324_620_000_640_000_with_camera_labels.tfrecord'
+    print(f"Loading segment from path {arguments.segment}")
 
-def print_chart(objects, n):
-    for label in ['vehicle', 'pedestrian']:
-        c = 0
-        for id in reversed(list(objects.keys())):
-            entries = objects[id]
-            type_str = label_to_str[entries[list(entries.keys())[0]][7]]
-            if type_str != label: continue
-            c += 1
-            r = range(0, n)
-            COLOR = '\033[91m' if type_str == 'vehicle' else '\033[94m'
-            ENDC = '\033[0m'
-            print(f"{COLOR}{id:3} {type_str:10} {''.join(['▮' if i in entries else '-' for i in r])}{ENDC}")
-        print(f"Label {c}")
-
-def print_mappings(real_objects, hypothesis, mappings, n):
-    GREEN = '\033[92m'
-    RED = '\033[91m'
-    BLUE = '\033[94m'
-    YELLOW = '\033[93m'
-    ENDC = '\033[0m'
-    frame_range = range(0, n)
-    mme = {}
-    misses = {}
-    false_positives = {}
-    mismatch_memory = {}
-
-
-    for label in ['vehicle', 'pedestrian']:
-        mme[label] = 0
-        misses[label] = 0
-        false_positives[label] = 0
-
-        for o_idx in reversed(list(real_objects.keys())):
-            mismatch_memory[o_idx] = []
-            entries = real_objects[o_idx]
-            type_str = label_to_str[entries[list(entries.keys())[0]][7]]
-            if type_str != label: continue
-            print(f"{o_idx:3} {type_str:10}", end='')
-            for frame in frame_range:
-                if frame not in entries:
-                    print(f"-", end='')
-                elif o_idx not in mappings[frame]:
-                    print(f"{RED}▮{ENDC}", end='')
-                    misses[label] += 1
-                elif frame > 0 :
-                    found_mismatch = False
-                    for prev_frame in reversed(range(frame)):
-                        if prev_frame in mismatch_memory[o_idx]: break
-                        if o_idx in mappings[prev_frame] and mappings[prev_frame][o_idx] != mappings[frame][o_idx]:
-                            print(f"{BLUE}▮{ENDC}", end='')
-                            mme[label] += 1
-                            found_mismatch = True
-                            mismatch_memory[o_idx].append(prev_frame)
-                            break
-                    if not found_mismatch:
-                        print(f'▯', end='')
-                else:
-                    print(f'▯', end='')
-            print()
-
-    print('Misses')
-    print(misses)
-    print('mme')
-    print(mme)
-    print('false_positives')
-    print(false_positives)
-
-def main():
-    segment_path = f"/home/erik/Projects/notebooks/pointclouds/data/{s_pedestrians}"
-
-    dataset = tf.data.TFRecordDataset([segment_path])
+    dataset = tf.data.TFRecordDataset([arguments.segment])
     frames = []
 
     for data in dataset:
@@ -107,9 +40,10 @@ def main():
 
     object_counts = {}
 
-    tracker = Tracker()
-    use_dropout = False
-    dropout = 0.2
+    if arguments.tracker == 'predictive':
+        tracker = PredictiveTracker()
+    else:
+        tracker = NaiveTracker()
 
     for i, frame in enumerate(frames):
         print(f"Frame {i} / {len(frames)}")
@@ -124,12 +58,11 @@ def main():
         detections = np.array([label_to_box(label, label_id_to_idx[label.id]) for label in labels])
         print(f"{len(detections)} detections.")
 
-        if use_dropout:
+        if arguments.dropout > 0:
             n_detections = detections.shape[0]
-            n_dropout = int(n_detections * dropout)
+            n_dropout = int(n_detections * arguments.dropout)
             print(f"Randomly dropping out {n_dropout} detections.")
             detections = detections[np.random.choice(n_detections, n_detections - n_dropout, replace=False)]
-
 
         for detection in detections: 
             type = int(detection[7])
@@ -163,4 +96,14 @@ def main():
     print_mappings(real_objects, hypothesis, mappings, len(frames))
 
 if __name__ == '__main__':
-    main()
+    parser = argparse.ArgumentParser(description='Run a tracking algorithmn on a segment of the Waymo Open Dataset')
+
+    parser.add_argument('-s', '--segment', type=str, required=True,
+                        help='Path to a segment .tfrecord file.')
+    parser.add_argument('-d', '--dropout', type=int, default=0, dest='n_frames',
+                        help='Dropout rate for detections in each frame. Default is 0.')
+    parser.add_argument('-t', '--tracker', type=str, default="predictive",
+                        help='Tracker to use. Either predictive or naive. Default is predictive.')
+
+    arguments = parser.parse_args()
+    main(arguments)

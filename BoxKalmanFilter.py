@@ -2,7 +2,7 @@ import numpy as np
 from filterpy.kalman import KalmanFilter
 
 # (x, y, z, w, l, h, angle, v_x, v_y, v_z, v_angle)
-class KalmanTracker():
+class BoxKalmanFilter():
     def __init__(self, box, id, type):
         self.id = id
         self.type = type

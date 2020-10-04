@@ -4,9 +4,9 @@ import numpy as np
 from iou3d import iou3d
 from scipy.optimize import linear_sum_assignment
 from utils import label_to_str, label_to_box
-from KalmanTracker import KalmanTracker
+from BoxKalmanFilter import BoxKalmanFilter
 
-class Tracker:
+class PredictiveTracker:
     def __init__(self):
         self.trackers = []
         self.id_count = 0
@@ -30,7 +30,7 @@ class Tracker:
         for i in unmatched_detections:
             type = detections[i][7]
             print(f"{i} ({label_to_str[type]})", end=', ')
-            tracker = KalmanTracker(detections[i,:7], self.id_count, type)
+            tracker = BoxKalmanFilter(detections[i,:7], self.id_count, type)
             self.id_count += 1
             self.trackers.append(tracker)
         print()
