@@ -100,7 +100,7 @@ if __name__ == '__main__':
 
     parser.add_argument('-s', '--segment', type=str, required=True,
                         help='Path to a segment .tfrecord file.')
-    parser.add_argument('-d', '--dropout', type=int, default=0, dest='n_frames',
+    parser.add_argument('-d', '--dropout', type=float, default=0,
                         help='Dropout rate for detections in each frame. Default is 0.')
     parser.add_argument('-t', '--tracker', type=str, default="predictive",
                         help='Tracker to use. Either predictive or naive. Default is predictive.')
